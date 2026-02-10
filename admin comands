@@ -1,0 +1,140 @@
+--[[
+    SISTEMA DE COMANDOS AVANÇADO
+    Versão 3.0
+    Todos os comandos originais + novos comandos + ?help
+]]
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local HttpService = game:GetService("HttpService")
+
+-- Configurações
+local ADMIN_PREFIX = "/"
+local HELP_COMMAND = "?"
+local DROP_DISTANCE = 5 -- Distância para droptools
+
+local allowedUsers = {
+	["rbxV1P3R"] = true,
+	["mest_x"] = true
+}
+
+-- Armazenamento de estados
+local toolStates = {
+	spinning = {},
+	rainbow = {},
+	orbiting = {},
+	following = {},
+	dancing = {},
+	magnetized = {}
+}
+
+-- Funções utilitárias aprimoradas
+local function getAllTools()
+	local tools = {}
+	-- Verifica no Workspace
+	for _, obj in ipairs(Workspace:GetDescendants()) do
+		if obj:IsA("Tool") then
+			table.insert(tools, obj)
+		end
+	end
+	-- Verifica nos jogadores
+	for _, player in ipairs(Players:GetPlayers()) do
+		-- Backpack
+		for _, tool in ipairs(player.Backpack:GetChildren()) do
+			if tool:IsA("Tool") then
+				table.insert(tools, tool)
+			end
+		end
+		-- Character
+		if player.Character then
+			for _, tool in ipairs(player.Character:GetChildren()) do
+				if tool:IsA("Tool") then
+					table.insert(tools, tool)
+				end
+			end
+		end
+	end
+	return tools
+end
+
+local function getPlayerByName(name)
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player.Name:lower() == name:lower() then
+			return player
+		end
+	end
+	return nil
+end
+
+local function showHelp(player)
+	local message = [[
+[🌟 COMANDOS DE ADMIN 🌟]
+
+🔧 FERRAMENTAS BÁSICAS:
+  /equiptools - /unequiptools
+  /droptools (5 studs à frente) - /undroptools
+  /collecttools - /uncollecttools
+  /clonealltools - /unclonealltools
+  /deletetools - (use /collecttools)
+  /spinalltools (infinito) - /unspinalltools
+  /freezealltools - /unfreezealltools
+  /highlighttools - /unhighlighttools
+  /burntools - /unburntools
+  /glowtools - /unglowtools
+  /gianttools - /tinytools
+  /tpalltools
+  /clearworkspace
+  /toolcount
+
+🌈 EFEITOS VISUAIS:
+  /neontools - /unneontools
+  /xraytools - /unxraytools
+  /ghosttools - /unghosttools
+  /cartoontools - /uncartoontools
+  /invisibletools - /uninvisibletools
+  /halloweentools - /unhalloweentools
+
+🌀 FÍSICA DIVERTIDA:
+  /rockettools - /unrockettools
+  /magnetictools [player] - /unmagnetictools
+  /antigravitytools - /unantigravitytools
+  /bouncytools - /unbouncytools
+  /chaostools - /unchaostools
+  /blackholetools - /unblackholetools
+  /earthquaketools - /unearthquaketools
+
+💥 EFEITOS ESPECIAIS:
+  /bombtools - /unbombtools
+  /fireworktools - /unfireworktools
+  /lavatools - /unlavatools
+  /meteortools - /unmeteortools
+  /dancetools - /undancetools
+  /angrytools - /unangrytools
+  /followtools [player] - /unfollowtools
+  /avoidtools [player] - /unavoidtools
+  /mimictools - /unmimictools
+  /funnytools - /unfunnytools
+
+❓ Digite ?help para ver esta lista novamente
+]]
+
+	-- Envia a mensagem para o chat do jogador
+	local function displayChatMessage()
+		game:GetService("Chat"):Chat(player.Character.Head, message, Enum.ChatColor.White)
+	end
+
+	if player.Character and player.Character:FindFirstChild("Head") then
+		displayChatMessage()
+	else
+		player.CharacterAdded:Connect(function()
+			if player.Character:FindFirstChild("Head") then
+				displayChatMessage()
+			end
+		end)
+	end
+end
+
+-- Comandos principais
+local ToolCommands = {
