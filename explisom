@@ -1,0 +1,139 @@
+-- Script para ser colocado no ServerScriptService ou na bomba
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+-- Caminho para os itens que devem ser destruídos
+local ITEMS_FOLDER = Workspace.Mapa2.Halloween
+local RESPAWN_TIME = 300 -- 5 minutos em segundos
+
+-- Função para salvar a estrutura original dos itens
+local function saveOriginalStructure(folder)
+    local structure = {}
+    
+    for _, item in ipairs(folder:GetDescendants()) do
+        if item:IsA("BasePart") or item:IsA("Model") then
+            table.insert(structure, {
+                Instance = item,
+                Parent = item.Parent,
+                Position = item:IsA("BasePart") and item.Position or nil,
+                CFrame = item:IsA("BasePart") and item.CFrame or nil
+            })
+        end
+    end
+    
+    return structure
+end
+
+-- Salvar estrutura original dos itens
+local originalItems = saveOriginalStructure(ITEMS_FOLDER)
+
+-- Função para destruir os itens
+local function destroyItems()
+    for _, itemData in ipairs(originalItems) do
+        local item = itemData.Instance
+        
+        if item and item.Parent then
+            if item:IsA("BasePart") then
+                -- Se for uma parte, pode explodir visualmente
+                local explosion = Instance.new("Explosion")
+                explosion.Position = item.Position
+                explosion.BlastPressure = 0 -- Para não empurrar outros itens
+                explosion.BlastRadius = 5
+                explosion.Parent = Workspace
+                
+                -- Destruir a parte
+                item:Destroy()
+            elseif item:IsA("Model") then
+                -- Se for um modelo, destruir todas as partes
+                for _, part in ipairs(item:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        local explosion = Instance.new("Explosion")
+                        explosion.Position = part.Position
+                        explosion.BlastPressure = 0
+                        explosion.BlastRadius = 5
+                        explosion.Parent = Workspace
+                        
+                        part:Destroy()
+                    end
+                end
+                item:Destroy()
+            end
+        end
+    end
+    
+    -- Notificar no console
+    print("Itens da pasta Halloween foram destruídos!")
+    
+    -- Iniciar contagem para respawn
+    task.wait(RESPAWN_TIME)
+    respawnItems()
+end
+
+-- Função para renascer os itens
+local function respawnItems()
+    -- Primeiro, limpar quaisquer itens restantes
+    for _, child in ipairs(ITEMS_FOLDER:GetChildren()) do
+        child:Destroy()
+    end
+    
+    -- Recriar os itens baseado na estrutura original
+    for _, itemData in ipairs(originalItems) do
+        if itemData.Instance then
+            local newItem = itemData.Instance:Clone()
+            
+            -- Se for uma parte, restaurar posição
+            if newItem:IsA("BasePart") and itemData.CFrame then
+                newItem.CFrame = itemData.CFrame
+            end
+            
+            -- Colocar no local original
+            newItem.Parent = itemData.Parent
+        end
+    end
+    
+    print("Itens da pasta Halloween renasceram após " .. RESPAWN_TIME .. " segundos!")
+end
+
+-- CONFIGURAÇÃO PARA A BOMBA
+-- Opção 1: Se a bomba já tem um script de explosão, adicione esta linha onde ela explode:
+local function setupBombExplosion(bomb)
+    -- Procurar pela bomba se não for passada como parâmetro
+    if not bomb then
+        bomb = Workspace:FindFirstChild("Bomba") or Workspace:FindFirstChild("Bomb")
+    end
+    
+    if bomb then
+        -- Conectar à explosão da bomba
+        bomb.Touched:Connect(function(hit)
+            -- Verificar se foi tocada por um player ou algo específico
+            if hit.Parent and hit.Parent:FindFirstChild("Humanoid") then
+                destroyItems()
+            end
+        end)
+        
+        -- Ou se a bomba tem um evento de explosão próprio
+        local explosionEvent = bomb:FindFirstChild("Explode")
+        if explosionEvent and explosionEvent:IsA("BindableEvent") then
+            explosionEvent.Event:Connect(destroyItems)
+        end
+    end
+end
+
+-- Inicializar
+setupBombExplosion()
+
+-- Função para teste manual (opcional)
+local function testExplosion()
+    print("Testando explosão...")
+    destroyItems()
+end
+
+-- Para testar via comando no chat (opcional)
+game.Players.PlayerAdded:Connect(function(player)
+    player.Chatted:Connect(function(message)
+        if message == "/explodir" and player.UserId == 123456 then -- Substitua pelo seu UserId
+            testExplosion()
+        end
+    end)
+end)
